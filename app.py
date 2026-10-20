@@ -30,6 +30,7 @@ st.set_page_config(
 DAILY = "Daily"
 UNLIMITED = "Unlimited"
 EMOJIS = {"green": "🟩", "yellow": "🟨", "black": "⬛"}
+GAME_URL = "https://verityle.streamlit.app/"
 
 try:
     # Everyone's "today" is the same day, wherever they are.
@@ -70,6 +71,9 @@ def build_share_text(game):
 
     for _, feedback in game["history"]:
         lines.append("".join(EMOJIS[color] for color in feedback))
+
+    lines.append("")
+    lines.append(f"Play the game at {GAME_URL}")
 
     return "\n".join(lines)
 
@@ -137,6 +141,68 @@ def render_share_button(text):
 
 if "games" not in st.session_state:
     st.session_state.games = {}
+
+
+def get_game(mode):
+    """Return this session's game for a mode, starting a new daily on a new day."""
+    game = st.session_state.games.get(mode)
+
+    if game is None or (mode == DAILY and game["date"] != today()):
+        game = make_game(mode)
+        st.session_state.games[mode] = game
+
+    return game
+
+
+# Remembers today's daily guesses in the browser, so a reload can't be used to
+# replay it. See storage_component/index.html.
+storage = components.declare_component(
+    "verityle_storage",
+    path=str(Path(__file__).parent / "storage_component"),
+)
+
+
+def daily_payload(game):
+    """What gets saved: just the date and the guesses made so far."""
+    if not game["history"]:
+        return None
+
+    return {
+        "date": game["date"],
+        "guesses": [guess for guess, _ in game["history"]],
+    }
+
+
+def restore_daily(game, stored):
+    """Replay saved guesses into a fresh daily game. Ignores bad or old data."""
+    if game["history"] or not isinstance(stored, dict):
+        return
+
+    if stored.get("date") != game["date"]:
+        return
+
+    guesses = stored.get("guesses")
+    if not isinstance(guesses, list):
+        return
+
+    for guess in guesses[:MAX_ATTEMPTS]:
+        valid = (
+            isinstance(guess, list)
+            and len(guess) == SEQUENCE_LENGTH
+            and all(word in WORDS for word in guess)
+        )
+        if not valid:
+            break
+
+        game["history"].append((guess, score_guess(guess, game["answer"])))
+
+        if guess == game["answer"]:
+            game["won"] = True
+            game["game_over"] = True
+            break
+
+    if len(game["history"]) >= MAX_ATTEMPTS:
+        game["game_over"] = True
 
 
 def get_image_data(word):
@@ -308,11 +374,17 @@ mode = st.radio(
     key="mode",
 )
 
-# The daily puzzle starts over when the date changes.
-game = st.session_state.games.get(mode)
-if game is None or (mode == DAILY and game["date"] != today()):
-    game = make_game(mode)
-    st.session_state.games[mode] = game
+# Load and save today's daily guesses in the browser.
+daily_game = get_game(DAILY)
+browser_value = storage(
+    save=daily_payload(daily_game),
+    default=None,
+    key="verityle_storage",
+)
+if browser_value:
+    restore_daily(daily_game, browser_value.get("stored"))
+
+game = get_game(mode)
 
 if mode == DAILY:
     st.caption(f"Daily puzzle for {game['date']}. Everyone gets the same one.")
