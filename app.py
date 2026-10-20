@@ -149,6 +149,64 @@ css += "</style>"
 st.markdown(css, unsafe_allow_html=True)
 
 
+# Responsive layout for phones and computers
+st.markdown("""
+<style>
+/* Keep the eight guess tiles in one horizontal row */
+[data-testid="stHorizontalBlock"] {
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    width: 100% !important;
+}
+
+[data-testid="stHorizontalBlock"] > [data-testid="column"] {
+    min-width: 0 !important;
+    width: 0 !important;
+    flex: 1 1 0% !important;
+    padding: 0 !important;
+}
+
+/* Let the game use the available screen width */
+.block-container {
+    width: 100% !important;
+    max-width: 900px !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+}
+
+/* Smaller buttons and tighter spacing on phones */
+@media screen and (max-width: 600px) {
+    [data-testid="stHorizontalBlock"] {
+        gap: 3px !important;
+    }
+
+    .block-container {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+        padding-top: 8px !important;
+    }
+
+    [data-testid="stButton"] button {
+        min-height: 36px !important;
+        padding: 2px !important;
+        font-size: 12px !important;
+    }
+
+    h1 {
+        font-size: 24px !important;
+    }
+}
+
+/* Larger controls on computers */
+@media screen and (min-width: 601px) {
+    [data-testid="stButton"] button {
+        min-height: 44px;
+    }
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 st.title("Verityle")
 
 # Previous guesses remain at the top.
