@@ -21,10 +21,40 @@ COLORS = {
 
 st.set_page_config(
     page_title="Verityle",
-    page_icon="🎭",
-    layout="centered",
+    page_icon="🙂",
+    layout="wide",
 )
 
+st.markdown("""
+<style>
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        padding-left: max(0.5rem, 2vw);
+        padding-right: max(0.5rem, 2vw);
+        max-width: 900px;
+    }
+
+    h1 {
+        font-size: clamp(1.5rem, 5vw, 2.5rem) !important;
+    }
+
+    [data-testid="stButton"] button {
+        min-height: 42px;
+    }
+
+    @media (max-width: 600px) {
+        .block-container {
+            padding-left: 0.35rem;
+            padding-right: 0.35rem;
+        }
+
+        [data-testid="stVerticalBlock"] {
+            gap: 0.4rem;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
 
 def initialize_game():
     st.session_state.answer = new_game()
@@ -50,7 +80,7 @@ def get_image_data(word):
 
 
 def render_row(words, feedback=None):
-    columns = st.columns(SEQUENCE_LENGTH, gap="small")
+    columns = st.columns(SEQUENCE_LENGTH, gap="xxsmall")
 
     for i, column in enumerate(columns):
         word = words[i] if i < len(words) else None
@@ -103,8 +133,8 @@ for word in WORDS:
             background-color: #eeeeee;
             border: 2px solid #777777;
             border-radius: 10px;
-            height: 100px;
-            min-height: 100px;
+            height: clamp(55px, 16vw, 100px);
+            min-height: clamp(55px, 16vw, 100px);
         }}
         .st-key-pick_{word} button p {{
             visibility: hidden;
@@ -129,7 +159,7 @@ for guess, feedback in st.session_state.history:
 if not st.session_state.game_over:
     render_row(st.session_state.guess)
 
-    face_columns = st.columns(4, gap="small")
+    face_columns = st.columns(4, gap="xxsmall")
 
     for i, word in enumerate(WORDS):
         with face_columns[i]:
