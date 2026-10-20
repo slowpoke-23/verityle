@@ -1,11 +1,10 @@
 import base64
+import json
 from pathlib import Path
 
 import streamlit as st
 import streamlit.components.v1 as components
-
-from main import WORDS, SEQUENCE_LENGTH, MAX_ATTEMPTS
-from main import new_game, score_guess
+from main import MAX_ATTEMPTS, SEQUENCE_LENGTH, WORDS, new_game, score_guess
 
 ASSETS = Path("assets")
 IMAGES = ASSETS / "images"
@@ -31,7 +30,6 @@ def initialize_game():
     st.session_state.history = []
     st.session_state.game_over = False
     st.session_state.won = False
-    st.session_state.sound_data = None
 
 
 if "answer" not in st.session_state:
@@ -132,7 +130,14 @@ h1 {
     min-height: 44px;
 }
 
-/* Submit sits on its own full-width row */
+/* Submit spans the full width (it's outside any column) */
+.st-key-submit_btn,
+.st-key-submit_btn [data-testid="stButton"],
+.st-key-submit_btn button {
+    width: 100% !important;
+    min-width: 0 !important;
+}
+
 .st-key-submit_btn button {
     min-height: 48px;
 }
@@ -210,15 +215,6 @@ if not st.session_state.game_over:
                 disabled=len(st.session_state.guess) >= SEQUENCE_LENGTH,
             ):
                 st.session_state.guess.append(word)
-
-                audio_path = AUDIO / f"{word}.mp3"
-                if audio_path.exists():
-                    st.session_state.sound_data = (
-                        base64.b64encode(
-                            audio_path.read_bytes()
-                        ).decode("ascii")
-                    )
-
                 st.rerun()
 
     undo_col, clear_col = st.columns(2, gap="small")
@@ -226,13 +222,11 @@ if not st.session_state.game_over:
     with undo_col:
         if st.button("Undo", disabled=not st.session_state.guess):
             st.session_state.guess.pop()
-            st.session_state.sound_data = None
             st.rerun()
 
     with clear_col:
         if st.button("Clear", disabled=not st.session_state.guess):
             st.session_state.guess = []
-            st.session_state.sound_data = None
             st.rerun()
 
     if st.button(
@@ -246,7 +240,6 @@ if not st.session_state.game_over:
 
         st.session_state.history.append((guess, feedback))
         st.session_state.guess = []
-        st.session_state.sound_data = None
 
         if guess == st.session_state.answer:
             st.session_state.won = True
@@ -257,18 +250,71 @@ if not st.session_state.game_over:
         st.rerun()
 
 
-# Hidden audio: no visible player controls.
-if st.session_state.sound_data:
-    components.html(
-        f"""
-        <audio autoplay>
-            <source
-                src="data:audio/mpeg;base64,{st.session_state.sound_data}"
-                type="audio/mpeg">
-        </audio>
-        """,
-        height=0,
-    )
+# Sound: phones only allow audio to start inside the tap itself, and a
+# Streamlit rerun happens too late for that. So the sounds are loaded once
+# into the page and played straight from the click, with no rerun involved.
+def get_audio_sources():
+    sources = {}
+
+    for word in WORDS:
+        path = AUDIO / f"{word}.mp3"
+
+        if path.exists():
+            encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+            sources[word] = f"data:audio/mpeg;base64,{encoded}"
+
+    return sources
+
+
+AUDIO_JS = """
+(function () {
+    if (window.__verityleAudio) return;
+
+    var sources = __SOURCES__;
+    var audios = {};
+
+    Object.keys(sources).forEach(function (word) {
+        var a = new Audio(sources[word]);
+        a.preload = "auto";
+        audios[word] = a;
+    });
+    window.__verityleAudio = audios;
+
+    document.addEventListener("click", function (e) {
+        var holder = e.target.closest && e.target.closest('[class*="st-key-pick_"]');
+        if (!holder) return;
+
+        var btn = holder.querySelector("button");
+        if (btn && btn.disabled) return;
+
+        var match = holder.className.match(/st-key-pick_([A-Za-z0-9_]+)/);
+        var audio = match && audios[match[1]];
+        if (!audio) return;
+
+        audio.currentTime = 0;
+        var p = audio.play();
+        if (p && p.catch) p.catch(function () {});
+    }, true);
+})();
+"""
+
+audio_script = AUDIO_JS.replace("__SOURCES__", json.dumps(get_audio_sources()))
+
+components.html(
+    f"""
+    <script>
+    (function () {{
+        var doc = window.parent.document;
+        if (doc.getElementById("verityle-audio-script")) return;
+        var s = doc.createElement("script");
+        s.id = "verityle-audio-script";
+        s.textContent = {json.dumps(audio_script)};
+        doc.head.appendChild(s);
+    }})();
+    </script>
+    """,
+    height=0,
+)
 
 
 if st.session_state.game_over:
