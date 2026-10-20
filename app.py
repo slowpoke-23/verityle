@@ -136,7 +136,7 @@ for word in WORDS:
             background-color: #eeeeee;
             border: 2px solid #777777;
             border-radius: 10px;
-            height: clamp(42px, 12vw, 80px) !important;
+            height: clamp(58px, 18vw, 90px) !important;
             min-height: 42px !important;
             max-height: 80px !important;
         }}
@@ -208,20 +208,40 @@ st.markdown("""
     }
 }
 
+
 @media screen and (max-width: 600px) {
+    [data-testid="stHorizontalBlock"] {
+        gap: 2px !important;
+    }
+
+    [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+        padding-left: 1px !important;
+        padding-right: 1px !important;
+        min-width: 0 !important;
+    }
+
+    [data-testid="stButton"] {
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
     [data-testid="stButton"] button {
         width: 100% !important;
         min-width: 0 !important;
         max-width: 100% !important;
         min-height: 36px !important;
-        padding: 2px 4px !important;
+        padding: 2px !important;
+        margin: 0 !important;
         font-size: 12px !important;
     }
 
-    [data-testid="stHorizontalBlock"] {
-        gap: 4px !important;
+    .block-container {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
     }
 }
+
 
 </style>
 """, unsafe_allow_html=True)
