@@ -1,14 +1,15 @@
-
 from collections import Counter
-from random import choice
+from random import Random
 
 WORDS = ["verity", "falsity", "cruelty", "lovity"]
 SEQUENCE_LENGTH = 8
 MAX_ATTEMPTS = 6
 
 
-def new_game():
-    return [choice(WORDS) for _ in range(SEQUENCE_LENGTH)]
+def new_game(seed=None):
+    """Return a random answer. The same seed always gives the same answer."""
+    rng = Random(seed)
+    return [rng.choice(WORDS) for _ in range(SEQUENCE_LENGTH)]
 
 
 def score_guess(guess, answer):
