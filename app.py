@@ -207,6 +207,22 @@ st.markdown("""
         min-height: 44px;
     }
 }
+
+@media screen and (max-width: 600px) {
+    [data-testid="stButton"] button {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        min-height: 36px !important;
+        padding: 2px 4px !important;
+        font-size: 12px !important;
+    }
+
+    [data-testid="stHorizontalBlock"] {
+        gap: 4px !important;
+    }
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -228,7 +244,7 @@ if not st.session_state.game_over:
             if st.button(
                 " ",
                 key=f"pick_{word}",
-                use_container_width=True,
+                use_container_width=False,
                 disabled=len(st.session_state.guess) >= SEQUENCE_LENGTH,
             ):
                 st.session_state.guess.append(word)
@@ -249,7 +265,7 @@ if not st.session_state.game_over:
         if st.button(
             "Undo",
             disabled=not st.session_state.guess,
-            use_container_width=True,
+            use_container_width=False,
         ):
             st.session_state.guess.pop()
             st.session_state.sound_data = None
@@ -259,7 +275,7 @@ if not st.session_state.game_over:
         if st.button(
             "Clear",
             disabled=not st.session_state.guess,
-            use_container_width=True,
+            use_container_width=False,
         ):
             st.session_state.guess = []
             st.session_state.sound_data = None
@@ -269,7 +285,7 @@ if not st.session_state.game_over:
         "Submit",
         type="primary",
         disabled=len(st.session_state.guess) != SEQUENCE_LENGTH,
-        use_container_width=True,
+        use_container_width=False,
     ):
         guess = st.session_state.guess.copy()
         feedback = score_guess(guess, st.session_state.answer)
@@ -311,6 +327,6 @@ if st.session_state.game_over:
             ["green"] * SEQUENCE_LENGTH,
         )
 
-    if st.button("Play again", type="primary", use_container_width=True):
+    if st.button("Play again", type="primary", use_container_width=False):
         initialize_game()
         st.rerun()
