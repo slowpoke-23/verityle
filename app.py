@@ -79,40 +79,43 @@ def get_image_data(word):
     return f"data:image/png;base64,{encoded}"
 
 
-def render_row(words, feedback=None):
-    columns = st.columns(SEQUENCE_LENGTH, gap="xxsmall")
 
-    for i, column in enumerate(columns):
+def render_row(words, feedback=None):
+    tiles = []
+
+    for i in range(SEQUENCE_LENGTH):
         word = words[i] if i < len(words) else None
         color = feedback[i] if feedback else "empty"
+        background = COLORS[color]
+        content = ""
 
-        with column:
-            background = COLORS[color]
-            source = get_image_data(word) if word else None
-
+        if word:
+            source = get_image_data(word)
             if source:
-                st.markdown(
-                    f"""
-                    <div style="background:{background};
-                        border-radius:7px;padding:3px;
-                        aspect-ratio:1;display:flex;
-                        align-items:center;justify-content:center;">
-                        <img src="{source}"
-                            style="width:100%;height:100%;
-                            object-fit:contain;">
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
+                content = (
+                    f'<img src="{source}" '
+                    'style="width:100%;height:100%;'
+                    'object-fit:contain;">'
                 )
-            else:
-                st.markdown(
-                    f"""
-                    <div style="background:{background};
-                        border-radius:7px;aspect-ratio:1;">
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+
+        tiles.append(
+            f'<div style="background:{background};'
+            'aspect-ratio:1;min-width:0;'
+            'border-radius:5px;overflow:hidden;'
+            'display:flex;align-items:center;'
+            'justify-content:center;padding:1px;'
+            f'box-sizing:border-box;">{content}</div>'
+        )
+
+    st.markdown(
+        '<div style="display:grid;'
+        'grid-template-columns:repeat(8,minmax(0,1fr));'
+        'gap:3px;width:100%;max-width:100%;'
+        'box-sizing:border-box;margin:4px 0 8px 0;">'
+        + "".join(tiles)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # Style native buttons with the corresponding face images.
@@ -133,8 +136,9 @@ for word in WORDS:
             background-color: #eeeeee;
             border: 2px solid #777777;
             border-radius: 10px;
-            height: clamp(55px, 16vw, 100px);
-            min-height: clamp(55px, 16vw, 100px);
+            height: clamp(42px, 12vw, 80px) !important;
+            min-height: 42px !important;
+            max-height: 80px !important;
         }}
         .st-key-pick_{word} button p {{
             visibility: hidden;
