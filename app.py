@@ -1,0 +1,224 @@
+
+import base64
+from pathlib import Path
+
+import streamlit as st
+import streamlit.components.v1 as components
+
+from main import WORDS, SEQUENCE_LENGTH, MAX_ATTEMPTS
+from main import new_game, score_guess
+
+ASSETS = Path("assets")
+IMAGES = ASSETS / "images"
+AUDIO = ASSETS / "audio"
+
+COLORS = {
+    "green": "#35A853",
+    "yellow": "#E8B923",
+    "black": "#202124",
+    "empty": "#DADCE0",
+}
+
+st.set_page_config(
+    page_title="Verityle",
+    page_icon="🎭",
+    layout="centered",
+)
+
+
+def initialize_game():
+    st.session_state.answer = new_game()
+    st.session_state.guess = []
+    st.session_state.history = []
+    st.session_state.game_over = False
+    st.session_state.won = False
+    st.session_state.sound_data = None
+
+
+if "answer" not in st.session_state:
+    initialize_game()
+
+
+def get_image_data(word):
+    path = IMAGES / f"{word}.png"
+
+    if not path.exists():
+        return None
+
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
+def render_row(words, feedback=None):
+    columns = st.columns(SEQUENCE_LENGTH, gap="small")
+
+    for i, column in enumerate(columns):
+        word = words[i] if i < len(words) else None
+        color = feedback[i] if feedback else "empty"
+
+        with column:
+            background = COLORS[color]
+            source = get_image_data(word) if word else None
+
+            if source:
+                st.markdown(
+                    f"""
+                    <div style="background:{background};
+                        border-radius:7px;padding:3px;
+                        aspect-ratio:1;display:flex;
+                        align-items:center;justify-content:center;">
+                        <img src="{source}"
+                            style="width:100%;height:100%;
+                            object-fit:contain;">
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f"""
+                    <div style="background:{background};
+                        border-radius:7px;aspect-ratio:1;">
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+
+# Style native buttons with the corresponding face images.
+css = """
+<style>
+"""
+
+for word in WORDS:
+    source = get_image_data(word)
+
+    if source:
+        css += f"""
+        .st-key-pick_{word} button {{
+            background-image: url("{source}");
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: contain;
+            background-color: #eeeeee;
+            border: 2px solid #777777;
+            border-radius: 10px;
+            height: 100px;
+            min-height: 100px;
+        }}
+        .st-key-pick_{word} button p {{
+            visibility: hidden;
+        }}
+        .st-key-pick_{word} button:hover {{
+            border-color: #35A853;
+            background-color: #eeeeee;
+        }}
+        """
+
+css += "</style>"
+st.markdown(css, unsafe_allow_html=True)
+
+
+st.title("Verityle")
+
+# Previous guesses remain at the top.
+for guess, feedback in st.session_state.history:
+    render_row(guess, feedback)
+
+# Current guess.
+if not st.session_state.game_over:
+    render_row(st.session_state.guess)
+
+    face_columns = st.columns(4, gap="small")
+
+    for i, word in enumerate(WORDS):
+        with face_columns[i]:
+            if st.button(
+                " ",
+                key=f"pick_{word}",
+                use_container_width=True,
+                disabled=len(st.session_state.guess) >= SEQUENCE_LENGTH,
+            ):
+                st.session_state.guess.append(word)
+
+                audio_path = AUDIO / f"{word}.mp3"
+                if audio_path.exists():
+                    st.session_state.sound_data = (
+                        base64.b64encode(
+                            audio_path.read_bytes()
+                        ).decode("ascii")
+                    )
+
+                st.rerun()
+
+    left, right = st.columns(2)
+
+    with left:
+        if st.button(
+            "Undo",
+            disabled=not st.session_state.guess,
+            use_container_width=True,
+        ):
+            st.session_state.guess.pop()
+            st.session_state.sound_data = None
+            st.rerun()
+
+    with right:
+        if st.button(
+            "Clear",
+            disabled=not st.session_state.guess,
+            use_container_width=True,
+        ):
+            st.session_state.guess = []
+            st.session_state.sound_data = None
+            st.rerun()
+
+    if st.button(
+        "Submit",
+        type="primary",
+        disabled=len(st.session_state.guess) != SEQUENCE_LENGTH,
+        use_container_width=True,
+    ):
+        guess = st.session_state.guess.copy()
+        feedback = score_guess(guess, st.session_state.answer)
+
+        st.session_state.history.append((guess, feedback))
+        st.session_state.guess = []
+        st.session_state.sound_data = None
+
+        if guess == st.session_state.answer:
+            st.session_state.won = True
+            st.session_state.game_over = True
+        elif len(st.session_state.history) >= MAX_ATTEMPTS:
+            st.session_state.game_over = True
+
+        st.rerun()
+
+
+# Hidden audio: no visible player controls.
+if st.session_state.sound_data:
+    components.html(
+        f"""
+        <audio autoplay>
+            <source
+                src="data:audio/mpeg;base64,{st.session_state.sound_data}"
+                type="audio/mpeg">
+        </audio>
+        """,
+        height=0,
+    )
+
+
+if st.session_state.game_over:
+    if st.session_state.won:
+        st.success("You got it!")
+    else:
+        st.error("Out of guesses!")
+        render_row(
+            st.session_state.answer,
+            ["green"] * SEQUENCE_LENGTH,
+        )
+
+    if st.button("Play again", type="primary", use_container_width=True):
+        initialize_game()
+        st.rerun()
